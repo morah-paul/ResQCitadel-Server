@@ -1,35 +1,52 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
-import { UserService } from './user.service';
+import { PrismaService } from 'nestjs-prisma';
+import {
+  Resolver,
+  Query,
+  Parent,
+  Mutation,
+  Args,
+  ResolveField,
+} from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
+import { UserEntity } from 'src/decorators/user.decorator';
+import { GqlAuthGuard } from '../auth/gql-auth.guard';
+import { UsersService } from './user.service';
 import { User } from './entities/user.entity';
-import { CreateUserInput } from './dto/create-user.input';
+import { ChangePasswordInput } from './dto/create-password.input';
 import { UpdateUserInput } from './dto/update-user.input';
 
 @Resolver(() => User)
-export class UserResolver {
-  constructor(private readonly userService: UserService) {}
+@UseGuards(GqlAuthGuard)
+export class UsersResolver {
+  constructor(
+    private usersService: UsersService,
+    private prisma: PrismaService,
+  ) {}
 
+  @Query(() => User)
+  async me(@UserEntity() user: User): Promise<User> {
+    return user;
+  }
+
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => User)
-  createUser(@Args('createUserInput') createUserInput: CreateUserInput) {
-    return this.userService.create(createUserInput);
+  async updateUser(
+    @UserEntity() user: User,
+    @Args('data') newUserData: UpdateUserInput,
+  ) {
+    return this.usersService.updateUser(user.id, newUserData);
   }
 
-  @Query(() => [User], { name: 'user' })
-  findAll() {
-    return this.userService.findAll();
-  }
-
-  @Query(() => User, { name: 'user' })
-  findOne(@Args('id', { type: () => Int }) id: number) {
-    return this.userService.findOne(id);
-  }
-
+  @UseGuards(GqlAuthGuard)
   @Mutation(() => User)
-  updateUser(@Args('updateUserInput') updateUserInput: UpdateUserInput) {
-    return this.userService.update(updateUserInput.id, updateUserInput);
-  }
-
-  @Mutation(() => User)
-  removeUser(@Args('id', { type: () => Int }) id: number) {
-    return this.userService.remove(id);
+  async changePassword(
+    @UserEntity() user: User,
+    @Args('data') changePassword: ChangePasswordInput,
+  ) {
+    return this.usersService.changePassword(
+      user.id,
+      user.password,
+      changePassword,
+    );
   }
 }

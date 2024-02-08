@@ -1,7 +1,8 @@
-import { ObjectType, Field, Int } from '@nestjs/graphql';
+import { ObjectType } from '@nestjs/graphql';
+import { User } from '../../user/entities/user.entity';
+import { Token } from './token.entity';
 
 @ObjectType()
-export class Auth {
-  @Field(() => Int, { description: 'Example field (placeholder)' })
-  exampleField: number;
+export class Auth extends Token {
+  user: User;
 }

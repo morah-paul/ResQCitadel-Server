@@ -1,26 +1,48 @@
-import { Injectable } from '@nestjs/common';
-import { CreateUserInput } from './dto/create-user.input';
+import { PrismaService } from 'nestjs-prisma';;
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { PasswordService } from '../auth/password.service';
+import { ChangePasswordInput } from './dto/create-password.input';
 import { UpdateUserInput } from './dto/update-user.input';
 
 @Injectable()
-export class UserService {
-  create(createUserInput: CreateUserInput) {
-    return 'This action adds a new user';
+export class UsersService {
+  constructor(
+    private prisma: PrismaService,
+    private passwordService: PasswordService,
+  ) {}
+
+  updateUser(userId: string, newUserData: UpdateUserInput) {
+    return this.prisma.user.update({
+      data: newUserData,
+      where: {
+        id: userId,
+      },
+    });
   }
 
-  findAll() {
-    return `This action returns all user`;
-  }
+  async changePassword(
+    userId: string,
+    userPassword: string,
+    changePassword: ChangePasswordInput,
+  ) {
+    const passwordValid = await this.passwordService.validatePassword(
+      changePassword.oldPassword,
+      userPassword,
+    );
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
-  }
+    if (!passwordValid) {
+      throw new BadRequestException('Invalid password');
+    }
 
-  update(id: number, updateUserInput: UpdateUserInput) {
-    return `This action updates a #${id} user`;
-  }
+    const hashedPassword = await this.passwordService.hashPassword(
+      changePassword.newPassword,
+    );
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+    return this.prisma.user.update({
+      data: {
+        password: hashedPassword,
+      },
+      where: { id: userId },
+    });
   }
 }

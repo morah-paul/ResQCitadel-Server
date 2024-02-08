@@ -1,35 +1,52 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import {
+  Resolver,
+  Mutation,
+  Args,
+  Parent,
+  ResolveField,
+} from '@nestjs/graphql';
 import { AuthService } from './auth.service';
 import { Auth } from './entities/auth.entity';
-import { CreateAuthInput } from './dto/create-auth.input';
-import { UpdateAuthInput } from './dto/update-auth.input';
+import { Token } from './entities/token.entity';
+import { LoginInput } from './dto/login.input';
+import { SignupInput } from './dto/signup.input';
+import { RefreshTokenInput } from './dto/refresh-token.input';
+import { User } from 'src/user/entities/user.entity';
 
 @Resolver(() => Auth)
 export class AuthResolver {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly auth: AuthService) {}
 
   @Mutation(() => Auth)
-  createAuth(@Args('createAuthInput') createAuthInput: CreateAuthInput) {
-    return this.authService.create(createAuthInput);
-  }
-
-  @Query(() => [Auth], { name: 'auth' })
-  findAll() {
-    return this.authService.findAll();
-  }
-
-  @Query(() => Auth, { name: 'auth' })
-  findOne(@Args('id', { type: () => Int }) id: number) {
-    return this.authService.findOne(id);
+  async signup(@Args('data') data: SignupInput) {
+    data.email = data.email;
+    const { accessToken, refreshToken } = await this.auth.createUser(data);
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 
   @Mutation(() => Auth)
-  updateAuth(@Args('updateAuthInput') updateAuthInput: UpdateAuthInput) {
-    return this.authService.update(updateAuthInput.id, updateAuthInput);
+  async login(@Args('data') { email, password }: LoginInput) {
+    const { accessToken, refreshToken } = await this.auth.login(
+      email,
+      password,
+    );
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 
-  @Mutation(() => Auth)
-  removeAuth(@Args('id', { type: () => Int }) id: number) {
-    return this.authService.remove(id);
+  @Mutation(() => Token)
+  async refreshToken(@Args() { token }: RefreshTokenInput) {
+    return this.auth.refreshToken(token);
+  }
+
+  @ResolveField('user', () => User)
+  async user(@Parent() auth: Auth) {
+    return await this.auth.getUserFromToken(auth.accessToken);
   }
 }
