@@ -35,4 +35,7 @@ export class User extends BaseEntity {
 
   @Field()
   password: string;
+
+  @Field()
+  isVerified: boolean;
 }

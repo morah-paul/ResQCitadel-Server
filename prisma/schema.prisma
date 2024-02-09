@@ -17,5 +17,6 @@ model User {
   lastname String
   password String
   role String
+  isVerified Boolean
 }
 

@@ -23,31 +23,31 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async createUser(payload: SignupInput): Promise<Token> {
-    const hashedPassword = await this.passwordService.hashPassword(
-      payload.password,
-    );
-
+  async createUser(payload: SignupInput): Promise<{ user: User; tokens: Token }> {
+    const hashedPassword = await this.passwordService.hashPassword(payload.password);
+  
     try {
       const user = await this.prisma.user.create({
         data: {
           ...payload,
           password: hashedPassword,
           role: 'USER',
+          isVerified: false,
         },
       });
-
-      return this.generateTokens({
+  
+      const tokens = this.generateTokens({
         userId: user.id,
       });
-    } catch (e) {
+      return { user, tokens };
+    } catch (error) {
       if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
       ) {
         throw new ConflictException(`Email ${payload.email} already used.`);
       }
-      throw new Error(e);
+      throw new Error(error);
     }
   }
 
@@ -56,6 +56,10 @@ export class AuthService {
 
     if (!user) {
       throw new NotFoundException(`No user found for email: ${email}`);
+    }
+
+    if (!user.isVerified) {
+      throw new UnauthorizedException('User account is not verified by admin');
     }
 
     const passwordValid = await this.passwordService.validatePassword(
